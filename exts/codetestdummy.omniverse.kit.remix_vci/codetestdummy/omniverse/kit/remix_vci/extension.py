@@ -235,10 +235,11 @@ class CodetestdummyOmniverseKitRemix_vciExtension(omni.ext.IExt):
 
             # Add reference overrides
             for prim in target_stage_prims:
-                asset_files = [file for file in asset_files if file.stem[len(self._FILE_NAME_PREFIX):] == prim.GetName()]
+                asset_file = [file for file in asset_files if file.stem[len(self._FILE_NAME_PREFIX):] == prim.GetName()]
                 print(asset_files)
+
                 if (asset_files):
-                    asset_file_path = asset_files[0]
+                    asset_file_path = asset_file[0]
                     relative_asset_path = os.path.relpath(asset_file_path, start=os.path.dirname(edit_layer.realPath)).replace('\\','/')
 
                     # Find the original references from the PrimSPec in the Capture Layer
@@ -255,7 +256,7 @@ class CodetestdummyOmniverseKitRemix_vciExtension(omni.ext.IExt):
                     prim.GetReferences().AddReference(Sdf.Reference(relative_asset_path))
                     # Set visibility attribute
                     visibility_attr = UsdGeom.Imageable(prim).CreateVisibilityAttr()
-                    visibility_attr.Set("inherited")
+                visibility_attr.Set("inherited")
 
     def apply_vci(self):
         if not self._flg_verify_ok:
