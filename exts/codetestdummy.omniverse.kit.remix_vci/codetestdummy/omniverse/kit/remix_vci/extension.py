@@ -147,14 +147,13 @@ class CodetestdummyOmniverseKitRemix_vciExtension(omni.ext.IExt):
         # Get mesh_HASH PrimSpecs from edit target layer
         edit_layer = self.get_selected_edit_layer()
         edit_meshes_prim = edit_layer.GetPrimAtPath(self._edit_layer_path)
-        if not captured_meshes_prim:
+        if not edit_meshes_prim:
             self._flg_verify_ok = False
-            report = f"Error: Could not get edit target layer meshes parent at: {self._edit_layer_path}"
+            report = f"Warning: Could not get edit target layer meshes parent at: {self._edit_layer_path}"
             self.set_status_message(report)
-            return
-
-        edit_mesh_primspecs = edit_meshes_prim.nameChildren
-        report += f"Found {len(edit_mesh_primspecs)} pre-existing overrides in edit layer.\n"
+        else:
+            edit_mesh_primspecs = edit_meshes_prim.nameChildren
+            report += f"Found {len(edit_mesh_primspecs)} pre-existing overrides in edit layer.\n"
 
         # Get prims from stage
         stage_prim = stage.GetPrimAtPath(self._stage_path)
