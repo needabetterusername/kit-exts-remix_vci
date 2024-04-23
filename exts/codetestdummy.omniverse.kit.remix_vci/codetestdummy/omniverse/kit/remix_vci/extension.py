@@ -149,7 +149,7 @@ class CodetestdummyOmniverseKitRemix_vciExtension(omni.ext.IExt):
         edit_meshes_prim = edit_layer.GetPrimAtPath(self._edit_layer_path)
         if not edit_meshes_prim:
             self._flg_verify_ok = False
-            report = f"Warning: Could not get edit target layer meshes parent at: {self._edit_layer_path}"
+            report += f"Warning: Could not get edit target layer meshes parent at: {self._edit_layer_path}\n"
             self.set_status_message(report)
         else:
             edit_mesh_primspecs = edit_meshes_prim.nameChildren
@@ -217,6 +217,7 @@ class CodetestdummyOmniverseKitRemix_vciExtension(omni.ext.IExt):
         if not self._flg_verify_ok:
             self.set_status_message("Please verify before overriding.")
         else:
+            report = ""
             # Find applicable targets
             stage = omni.usd.get_context().get_stage()
             edit_layer = self.get_selected_edit_layer()
@@ -226,7 +227,8 @@ class CodetestdummyOmniverseKitRemix_vciExtension(omni.ext.IExt):
             asset_files = self.get_asset_files()
             asset_file_names = [file.stem[len(self._FILE_NAME_PREFIX):] for file in asset_files]
 
-            overrides = self.get_selected_edit_layer().GetPrimAtPath(self._edit_layer_path).nameChildren
+            edit_meshes_prim = self.get_selected_edit_layer().GetPrimAtPath(self._edit_layer_path)
+            overrides = edit_meshes_prim.nameChildren if edit_meshes_prim else []
             override_names = [spec.name for spec in overrides]
 
             target_stage_prims = [prim for prim in stage_prims if (prim.GetName() in asset_file_names) and (prim.GetName() not in override_names)]
