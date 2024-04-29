@@ -3,7 +3,7 @@ from pathlib import Path
 
 import omni.ext
 import omni.ui as ui
-from pxr import UsdGeom, Sdf
+from pxr import Usd, UsdGeom, Sdf, Gf
 
 
 # Functions and vars are available to other extension as usual in python: `example.python_ext.some_public_function(x)`
@@ -33,6 +33,7 @@ class CodetestdummyOmniverseKitRemix_vciExtension(omni.ext.IExt):
     _edit_layer_path = "/RootNode/meshes"
     _processable_prim_specs: list = []
     _mesh_files: list = []
+    _vci_name = "_visualCorrectionInverse"
 
     def on_startup(self, ext_id):
         # startup/shutdown print calls from template are causing errors when launcher is not running.
@@ -51,6 +52,7 @@ class CodetestdummyOmniverseKitRemix_vciExtension(omni.ext.IExt):
 
                 ui.Label("Please select edit target layer:", height=25)
                 self.__combo_box_edit = ui.ComboBox(0, *self.__layer_options, name="dropdown_menu_edit", height=30)
+                self.__combo_box_capture.model.add_item_changed_fn(self.on_select_layer)
 
                 ui.Label("Please select replacement meshes folder:", height=25)
                 with ui.HStack(height=40):
@@ -67,16 +69,16 @@ class CodetestdummyOmniverseKitRemix_vciExtension(omni.ext.IExt):
                     self.add_overrides()
 
                 def on_apply_transforms():
-                    pass
+                    self.apply_vci()
 
                 ui.Button("Verify", clicked_fn=on_verify, height=25)
 
                 label = ui.Label("Status:",height=25)
-                self._status_lbl = ui.Label("")
+                self._status_lbl = ui.Label("", word_wrap=True)
 
                 with ui.HStack(height=25):
                     ui.Button("Override References", clicked_fn=on_apply_overrides, height=25)
-                    ui.Button("Add Transforms", clicked_fn=on_apply_transforms, height=25, enabled=False)
+                    ui.Button("Add Transforms", clicked_fn=on_apply_transforms, height=25)
 
     def on_select_layer(self, arg1, arg2):
         self._flg_verify_ok = False
@@ -106,13 +108,6 @@ class CodetestdummyOmniverseKitRemix_vciExtension(omni.ext.IExt):
         self._capture_layer_selection = self.__combo_box_capture.model.get_item_value_model().get_value_as_int()
         self._edit_layer_selection = self.__combo_box_edit.model.get_item_value_model().get_value_as_int()
         self._meshes_path = self._string_model_search.get_value_as_string()
-
-        # if (capture_layer_selection == 0) or (edit_layer_selection == 0):
-        #     report = "Error: Select both capture and edit layers."
-        #     self.set_status_message(report)
-        #     self._flg_verify_ok = False
-        # 
-        #     return
 
         if self._capture_layer_selection == self._edit_layer_selection:
             report = "Error: Edit target layer cannot be capture layer."
@@ -172,36 +167,6 @@ class CodetestdummyOmniverseKitRemix_vciExtension(omni.ext.IExt):
 
         return
 
-        scope_prim = stage.GetPrimAtPath(path)
-        if scope_prim:
-
-            children: list = scope_prim.GetChildren()
-
-            for child_prim in children:
-                
-                prim_name = child_prim.GetName()
-                prim_spec = root_layer.GetPrimAtPath(child_prim.GetPath())
-                if prim_spec:
-                    # Check the reference edits
-                    ref_list = prim_spec.referenceList
-                    deleted_items = ref_list.deletedItems
-                    prepend_items = ref_list.prependedItems
-
-                    if deleted_items and prepend_items:
-                        # Check for matching delete and prepend for "mesh_ABCD" and "E_mesh_ABCD" in assetPath properties
-                        # for ref in deleted_items:
-                            # if 'visual_correction' in str(ref.primPath):
-                            #     self._processable_prim_specs.append(prim_spec)
-                        #if any(deleted_item.)
-                        pass
-
-            report = f"Found {len(children)} children of which {len(self._processable_prim_specs)} are processable."
-            self.set_status_message(report)
-            self._flg_verify_ok = True
-        else:
-            self.set_status_message("Invalid scope path.")
-            self._flg_verify_ok = False
-
     def get_selected_capture_layer(self):
         return omni.usd.get_context().get_stage().GetLayerStack()[self._capture_layer_selection]
 
@@ -235,6 +200,7 @@ class CodetestdummyOmniverseKitRemix_vciExtension(omni.ext.IExt):
             print(target_stage_prims)
 
             # Add reference overrides
+            count = 0
             for prim in target_stage_prims:
                 asset_file = [file for file in asset_files if file.stem[len(self._FILE_NAME_PREFIX):] == prim.GetName()]
                 print(asset_files)
@@ -258,33 +224,100 @@ class CodetestdummyOmniverseKitRemix_vciExtension(omni.ext.IExt):
                     # Set visibility attribute
                     visibility_attr = UsdGeom.Imageable(prim).CreateVisibilityAttr()
                 visibility_attr.Set("inherited")
+                count += 1
+
+            self.set_status_message(f"Done.\nCreated {count} overrides in {self._stage_path}")
 
     def apply_vci(self):
         if not self._flg_verify_ok:
             self.set_status_message("Please verify before applying.")
         else:
-            self.set_status_message("Not supported.")
-            return
-        
-            prim_specs = self._processable_prim_specs
-            if prim_specs:
-                total = len(prim_specs)
-                if total:
-                    count = 0
-                    for prim_spec in prim_specs:
-                        try:
-                            self.set_status_message(f"Applying VCI to Prim {count+1} of {total}")
-                            count += 1
-                        except Exception as e:
-                            print(f"Exception while processing {prim_spec}: {e}")
-                    self.set_status_message(f"DRY RUN: Finished applying to {count} of {total} prims.")
-            else:
-                self.set_status_message("Nothing to process!")
+            xformop_name = f"xformOp:transform:{self._vci_name}"
+            stage = omni.usd.get_context().get_stage()
 
-    def get_xform_from_assetfile(asset_path: str):
+            # Get overriding mesh_HASH PrimSpecs from edit target layer
+            edit_layer = self.get_selected_edit_layer()
+            edit_meshes_prim = edit_layer.GetPrimAtPath(self._edit_layer_path)
+            if not edit_meshes_prim:
+                self.set_status_message("Error: No overrides found. Please first override meshes.")
+                return
+            override_primspecs = edit_meshes_prim.nameChildren
+
+            # Get those overrides which do not already have a transform property
+            target_overrides = [primspec for primspec in override_primspecs if not primspec.attributes.get(xformop_name)]            
+
+
+            capture_layer = self.get_selected_capture_layer()
+            count = 0
+            for override_primspec in target_overrides:
+                # Get original mesh_HASH PrimSpec from capture layer    
+                capture_primspec = capture_layer.GetPrimAtPath(self._capture_layer_path + "/" + override_primspec.name)
+                if not capture_primspec:
+                    print(f"Error: could not get capture primspec for mesh {override_primspec.name}")
+                    pass
+
+                # get reference
+                references = capture_primspec.referenceList.prependedItems
+                print(capture_layer.realPath)
+                print(references[0].assetPath)
+                capture_asset_path = os.path.join(os.path.dirname(capture_layer.realPath), references[0].assetPath)
+                capture_asset_path = os.path.abspath(capture_asset_path)
+                print(capture_asset_path)
+
+                # load file in memory and get the the visual_correction transform
+                try:
+                    tmp_stage = Usd.Stage.Open(capture_asset_path, Usd.Stage.LoadNone)
+                except Exception as e:
+                    print(f"Error loading stage for captured mesh {capture_asset_path}:\n{e}")
+                    pass
+
+                capture_prim = tmp_stage.GetPrimAtPath("/visual_correction")
+                if not capture_prim:
+                    print(f"Error: Count not get visual_transform prim for {override_primspec.name}")
+                    pass
+
+                source_xformable = UsdGeom.Xformable(capture_prim)
+                xform_op: UsdGeom.XformOp = source_xformable.GetOrderedXformOps()[0]
+                if not xform_op:
+                    print(f"Error: Could not get XformOp from captured prim {capture_prim.name}")
+                    pass
+
+                # compute the inverse transform
+                # matrix = transform_op.GetOpTransform().Get()
+
+                # Invert axes: Flip sign of the first, second, and fourth columns to invert X, Y, and translation respectively
+                # matrix[0][0] *= -1  # Invert X-axis
+                # matrix[3][0] *= -1  # Invert X translation
+
+                # get target stage prim
+                target_prim = stage.GetPrimAtPath(self._stage_path + "/" + override_primspec.name)
+                if not target_prim:
+                    print(f"Error: Could not get stage prim for mesh {override_primspec.name}")
+                    pass
+                target_xformable = UsdGeom.Xformable(target_prim)
+
+                # add trasnform (with name!) to override_primspec
+                op_type = xform_op.GetOpType()
+                op_name = xform_op.GetName()
+                op_precision = xform_op.GetPrecision()
+                # Get the value at default timecode
+                value = xform_op.Get(Usd.TimeCode.Default())
+
+                # Add a new XformOp to the target prim with the same type, name, and precision
+                new_op = target_xformable.AddXformOp(op_type, precision=op_precision, opSuffix=op_name)
+                new_op.Set(value)
+
+                count += 1
+
+            self.set_status_message(f"Done. Applied {count} inverse transforms.")
+
+    def get_xform_from_assetfile(self, asset_path: str):
         pass
 
-    def apply_xform_override_to_prim(prim_path: str):
+    def apply_xform_override_to_prim(self, prim_path: str):
+        pass
+
+    def compute_inverse_transform(self, stuff):
         pass
 
     def on_shutdown(self):
