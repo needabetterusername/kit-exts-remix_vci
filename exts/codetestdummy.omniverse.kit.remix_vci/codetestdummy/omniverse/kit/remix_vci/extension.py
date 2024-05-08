@@ -210,21 +210,29 @@ class CodetestdummyOmniverseKitRemix_vciExtension(omni.ext.IExt):
                     relative_asset_path = os.path.relpath(asset_file_path, start=os.path.dirname(edit_layer.realPath)).replace('\\','/')
 
                     # Find the original references from the PrimSPec in the Capture Layer
-                    capture_layer = self.get_selected_capture_layer()
-                    prim_spec = capture_layer.GetPrimAtPath(prim.GetPath())
-                    for reference in prim_spec.referenceList.prependedItems:
-                        # Resolve reference to absolute path
-                        reference_path = os.path.join(os.path.dirname(capture_layer.realPath), reference.assetPath)
-                        # Convert absolute path to path relative to edit layer
-                        relative_reference_path = os.path.relpath(reference_path, start=os.path.dirname(edit_layer.realPath)).replace('\\','/')
-                        prim.GetReferences().RemoveReference(Sdf.Reference(relative_reference_path,reference.primPath))
+                    # capture_layer = self.get_selected_capture_layer()
+                    # prim_spec = capture_layer.GetPrimAtPath(prim.GetPath())
+                    # for reference in prim_spec.referenceList.prependedItems:
+                    #     # Resolve reference to absolute path
+                    #     reference_path = os.path.join(os.path.dirname(capture_layer.realPath), reference.assetPath)
+                    #     # Convert absolute path to path relative to edit layer
+                    #     relative_reference_path = os.path.relpath(reference_path, start=os.path.dirname(edit_layer.realPath)).replace('\\','/')
+                    #     prim.GetReferences().RemoveReference(Sdf.Reference(relative_reference_path,reference.primPath))
 
                     # Add new reference
                     prim.GetReferences().AddReference(Sdf.Reference(relative_asset_path))
                     # Set visibility attribute
                     visibility_attr = UsdGeom.Imageable(prim).CreateVisibilityAttr()
-                visibility_attr.Set("inherited")
-                count += 1
+                    visibility_attr.Set("inherited")
+
+                    # Get child mesh and set overrides
+                    child_prim = prim.GetChild("mesh")
+                    child_prim.SetActive(False)
+                    visibility_attr = UsdGeom.Imageable(child_prim).CreateVisibilityAttr()
+                    visibility_attr.Set("invisible")
+
+
+                    count += 1
 
             self.set_status_message(f"Done.\nCreated {count} overrides in {self._stage_path}")
 
