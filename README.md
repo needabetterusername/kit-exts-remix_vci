@@ -1,52 +1,28 @@
-# Extension Project Template
+# VCI for Remix
 
-This project was automatically generated.
+This extension for NVIDIA Omniverse is intended to assis with Remix projects in the following ways:
 
-- `app` - It is a folder link to the location of your *Omniverse Kit* based app.
-- `exts` - It is a folder where you can add new extensions. It was automatically added to extension search path. (Extension Manager -> Gear Icon -> Extension Search Path).
+- Batch-process the change of reference for updated asset meshes
+- Help to re-apply the "Visual Correction" to updated asses to approximate the correct position
+  - **Note:** Depending on the game, this might or might not work. This is a known issue with the Remix capture for certain games.
 
-Open this folder using Visual Studio Code. It will suggest you to install few extensions that will make python experience better.
+## Instructions
 
-Look for "codetestdummy.omniverse.kit.remix_vci" extension in extension manager and enable it. Try applying changes to any python files, it will hot-reload and you can observe results immediately.
+1) Download and install the extension from the "releases" setion of this repository.
+2) Enable the extension in you app of choice (e.g. Composer)
+   ![Select the extension](img/extension.png)
+3) Add as layers the captures from Remix which you want to use
+4) Configure the extension
+   - Specify the capture layer you want to use in your mod.usd file
+   - Specify the authoring layer you want to use (e.g. mod.usd)
+   - Specify the folder which has you update mesh_HASH.usd assets
+   - Click "Verify" and handle any reported errors
+   ![Select the extension](img/preview.png)
+4) If there are no errors, first click "Override References"
+   - This will only update references for which there is a mesh_HASH Primspec in the capture layer and also a matching mesh_HASH.usd file in the replacements folder.
+5) Click "Add Transforms"
+   - This will apply the "visual correction" transform for any overrides in the authoring layer for which a matching Xform is in the capture layer.
+6) Repeat steps 4-5 for all the capture layers you have added.
 
-Alternatively, you can launch your app from console with this folder added to search path and your extension enabled, e.g.:
-
-```
-> app\omni.code.bat --ext-folder exts --enable company.hello.world
-```
-
-# App Link Setup
-
-If `app` folder link doesn't exist or broken it can be created again. For better developer experience it is recommended to create a folder link named `app` to the *Omniverse Kit* app installed from *Omniverse Launcher*. Convenience script to use is included.
-
-Run:
-
-```
-> link_app.bat
-```
-
-If successful you should see `app` folder link in the root of this repo.
-
-If multiple Omniverse apps is installed script will select recommended one. Or you can explicitly pass an app:
-
-```
-> link_app.bat --app create
-```
-
-You can also just pass a path to create link to:
-
-```
-> link_app.bat --path "C:/Users/bob/AppData/Local/ov/pkg/create-2021.3.4"
-```
-
-
-# Sharing Your Extensions
-
-This folder is ready to be pushed to any git repository. Once pushed direct link to a git repository can be added to *Omniverse Kit* extension search paths.
-
-Link might look like this: `git://github.com/[user]/[your_repo].git?branch=main&dir=exts`
-
-Notice `exts` is repo subfolder with extensions. More information can be found in "Git URL as Extension Search Paths" section of developers manual.
-
-To add a link to your *Omniverse Kit* based app go into: Extension Manager -> Gear Icon -> Extension Search Path
-
+## Known issues
+Currently, if you add a capture layer, or other wise change the layers you want to make use of, *after* enabling the extension, you need to disable and re-enable the extension. This inconvenience will be fixed in the next version. 
